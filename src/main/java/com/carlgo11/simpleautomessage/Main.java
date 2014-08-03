@@ -1,28 +1,28 @@
 package com.carlgo11.simpleautomessage;
 
 import com.carlgo11.simpleautomessage.commands.*;
-import com.carlgo11.simpleautomessage.updater.*;
 import com.carlgo11.simpleautomessage.language.*;
-import com.carlgo11.simpleautomessage.player.*;
-import java.io.File;
-import java.io.IOException;
-import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
 import com.carlgo11.simpleautomessage.metrics.*;
+import com.carlgo11.simpleautomessage.player.*;
+import com.carlgo11.simpleautomessage.updater.*;
+import com.carlgo11.simpleautomessage.updater.Updater.UpdateResult;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import static org.bukkit.Bukkit.getPluginManager;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class Main extends JavaPlugin {
-    
+
     public int tick = 1; // msg+<tick> int
     public int time = 0; // the delay
     public static YamlConfiguration LANG;
@@ -31,48 +31,49 @@ public class Main extends JavaPlugin {
     public boolean debugm;
     public ArrayList<String> messages = new ArrayList<String>();
     public String configv = "1.0.7";
-    
+
     public void onEnable()
     {
         reloadConfig();
         checkConfig();
         checkDebugMode();
         checkVersion();
-        getServer().getPluginManager().registerEvents(new loadLang(this), this);
+        loadLang.loadLang(getConfig().getString("language"), this);
+        loadLang.loadLang("backup", this);
         registerListeners(getPluginManager());
         registerCommands();
-        getLogger().info(getDescription().getName() + " " + getDescription().getVersion() + " " + Lang.ENABLED);
+         getLogger().log(Level.INFO, Lang.get("plugin-enabled"), new Object[]{getDescription().getName(), getDescription().getVersion()});
     }
-    
+
     public void onDisable()
     {
-        getLogger().info(getDescription().getName() + " " + getDescription().getVersion() + " " + Lang.DISABLED);
+        getLogger().log(Level.INFO, Lang.get("plugin-disabled"), new Object[]{getDescription().getName(), getDescription().getVersion()});
     }
-    
+
     private void registerListeners(PluginManager pm)
     {
         moveMessages.moveOldMessages(this);
         loadMessages();
         pm.registerEvents(new Time(this), this);
         pm.registerEvents(new PlayerJoin(this), this);
-        
+
         Announce announce = new Announce();
         announce.setup(this);
-        
+
         try {
             Metrics metrics = new Metrics(this);
             CustomGraphs.graphs(metrics, this);
             metrics.start();
         } catch (IOException ex) {
-            System.out.println("[" + getDescription().getName() + "] " + Lang.STATS_ERROR + "Output: " + ex.toString());
+            System.out.println("[" + getDescription().getName() + "] " + Lang.get("mcstats-error") + "Output: " + ex.toString());
         }
     }
-    
+
     private void registerCommands()
     {
         getCommand("simpleautomessage").setExecutor(new SimpleautomessageCommand(this));
     }
-    
+
     public void checkVersion()
     {
         if (getDescription().getVersion().startsWith("dev-")) { // prints out a warning when using dev build
@@ -82,13 +83,14 @@ public class Main extends JavaPlugin {
         }
         update();
     }
-    
-    void update(){
+
+    void update()
+    {
         if (getConfig().getBoolean("auto-update")) {
             debug("Calling Updater.java");
             Updater updater = new Updater(this, 49417, getFile(), Updater.UpdateType.DEFAULT, true);
             update = updater.getResult() == Updater.UpdateResult.UPDATE_AVAILABLE;
-            
+
         } else if (!getConfig().getString("warn-update").equalsIgnoreCase("none")) {
             Updater updater = new Updater(this, 49417, getFile(), Updater.UpdateType.NO_DOWNLOAD, false);
             update = updater.getResult() == Updater.UpdateResult.UPDATE_AVAILABLE;
@@ -96,7 +98,7 @@ public class Main extends JavaPlugin {
             debug("auto-update & warn-update is set to false!");
         }
     }
-    
+
     public void checkConfig()
     {
         File config = new File(getDataFolder(), "config.yml");
@@ -113,7 +115,7 @@ public class Main extends JavaPlugin {
             debug("update-config is set to false.");
         }
     }
-    
+
     private void loadMessages()
     {
         messages.clear();
@@ -122,11 +124,11 @@ public class Main extends JavaPlugin {
             File file = getMessageFile();
             if (!file.exists()) {
                 file.createNewFile();
-                this.getLogger().info("No "+file.getName()+" found. Created a new one");
+                this.getLogger().log(Level.INFO, Lang.get("no-msg-file"), file.getName());
             }
             BufferedReader read;
             read = new BufferedReader(new FileReader(file));
-            
+
             String line;
             while ((line = read.readLine()) != null) {
                 if (!messages.contains(line)) {
@@ -139,52 +141,57 @@ public class Main extends JavaPlugin {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
+
     public YamlConfiguration getLang()
     {
         return LANG;
     }
-    
+
     public File getLangFile()
     {
         return LANG_FILE;
     }
-    
+
     public void debug(String s)
     {
         if (debugm) {
             getLogger().log(Level.INFO, "[" + "Debug" + "]" + " {0}", s);
         }
     }
-    
+
     public void checkDebugMode()
     {
         if (getConfig().getBoolean("debug")) {
             debugm = true;
         }
     }
-    
+
     public void forceUpdate(CommandSender p, String sender0)
     {
-        String up = Lang.UPDATING.toString().replaceAll("%prefix%", getDescription().getName());
-        String updone = Lang.UPDATED.toString().replaceAll("%prefix%", getDescription().getName());
-        p.sendMessage(sender0 + " " + ChatColor.GREEN + up);
+        String up = Lang.get("updating").toString().replace("{0}", getDescription().getName());
+        String updone = Lang.get("updated").replace("{0}", getDescription().getName());
+        p.sendMessage(Lang.get("prefix") + " " + up);
         Updater updater = new Updater(this, 49417, getFile(), Updater.UpdateType.NO_VERSION_CHECK, true);
-        p.sendMessage(sender0 + " " + ChatColor.GREEN + updone);
+        System.out.println("Result: "+updater.getResult());
+        if(updater.getResult().equals(UpdateResult.SUCCESS)){
+        p.sendMessage(Lang.get("prefix") + " " + updone);
+        }else{
+            p.sendMessage(Lang.get("prefix") + Lang.get("update-error"));
+        }
     }
-    
+
     public boolean onlinePlayers()
     {
         int conf = getConfig().getInt("min-players");
         int online = Bukkit.getOnlinePlayers().length;
-        
+
         if (online >= conf) {
             return true;
         } else {
             return false;
         }
     }
-    
+
     public int getRandomInt(int maxammount)
     {
         int qwe = 0;
@@ -209,7 +216,7 @@ public class Main extends JavaPlugin {
         }
         return a;
     }
-    
+
     public File getMessageFile()
     {
         return new File("" + this.getDataFolder() + File.separatorChar + this.getConfig().getString("message-file"));

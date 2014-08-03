@@ -1,5 +1,7 @@
 package com.carlgo11.simpleautomessage;
 
+import com.carlgo11.simpleautomessage.language.Lang;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 
@@ -35,10 +37,10 @@ public class Announce {
                 if (warningCounter <= 4) {
                     if (Main.onlinePlayers()) {
                         if (cm == 1) {
-                            Main.getLogger().severe("Could not find any messages in the config. Did you forget to add some or is the config broken?");
+                            Main.getLogger().log(Level.SEVERE, Lang.get("no-messages"), new Object[]{Main.getConfig().getString("message-file")});
                             warningCounter++;
                             if (warningCounter == 5) {
-                                Main.getLogger().severe("Will stop outputing warnings now. Please fix your config and reload the plugin.");
+                                Main.getLogger().log(Level.SEVERE, Lang.get("stop-errors"), new Object[]{Main.getConfig().getString("message-file")});
                             }
                         } else {
                             if (isRandom) {
@@ -97,8 +99,9 @@ public class Announce {
         String sender = ChatColor.translateAlternateColorCodes('&', Main.getConfig().getString("sender"));
         String suffix = ChatColor.translateAlternateColorCodes('&', Main.getConfig().getString("suffix"));
         String msg = ChatColor.translateAlternateColorCodes('&', message);
-
+        if (msg.contains("\n")) {
+            msg.replaceAll("\n", System.getProperty("line.separator"));
+        }
         Bukkit.broadcast(prefix + ChatColor.RESET + sender + ChatColor.RESET + suffix + " " + ChatColor.RESET + msg, "simpleautomessage.seemsg");
     }
-
 }
